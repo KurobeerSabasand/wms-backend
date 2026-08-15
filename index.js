@@ -11,7 +11,7 @@ const cors = require("cors");
 //database.js を作る（SQLite 接続）
 const Database = require("better-sqlite3");
 // データベースファイルを作成（なければ自動生成）
-const dbPath = path.join(__dirname, "products.db")
+const dbPath = path.join("/opt/render/project/src/products.db")
 const db = new Database(dbPath);
 
 const app = express();
