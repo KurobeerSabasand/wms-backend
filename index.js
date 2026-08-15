@@ -11,7 +11,7 @@ const cors = require("cors");
 //database.js を作る（SQLite 接続）
 const Database = require("better-sqlite3");
 // データベースファイルを作成（なければ自動生成）
-const db = new Database("products.db");
+const db = new Database(__dirname, "products.db");
 
 const app = express();
 const PORT = 3000;
