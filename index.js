@@ -36,7 +36,7 @@ app.use(cors({
     origin: [
         "http://localhost:5500",
         "http://127.0.0.1:5500",
-        "https://KurbeerSabasand.github.io/wms-frontend/"
+        "https://kurbeersabasand.github.io/wms-frontend/"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true
