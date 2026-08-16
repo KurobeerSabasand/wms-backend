@@ -37,7 +37,7 @@ app.use(cors({
         "https://kurobeersabasand.github.io/wms-frontend/"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
-    credentials: true
+    allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 // テーブル作成
