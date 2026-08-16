@@ -34,7 +34,7 @@ app.use(express.static("public"));
 //CORS を設定する
 app.use(cors({
     origin: [
-        "https://kurobeersabasand.github.io/wms-frontend/"
+        "https://kurobeersabasand.github.io"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
