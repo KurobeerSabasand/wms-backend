@@ -15,7 +15,7 @@ const dbPath = path.join("/opt/render/project/src/products.db")
 const db = new Database(dbPath);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const bcrypt = require("bcrypt");
 const { ok } = require("assert");
@@ -195,5 +195,5 @@ app.delete("/api/products/:id", authenticateToken, (req, res) => {
 //showMenu();
 
 app.listen(PORT, () => {
-    console.log(`webサーバーを起動しました http://localhost:${PORT}`);
+    console.log(`webサーバーを起動しました ポート:${PORT}`);
 });
