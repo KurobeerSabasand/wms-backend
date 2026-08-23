@@ -17,6 +17,7 @@ const { Pool } = require("pg");
 //CORS を設定する
 app.use(cors({
     origin: [
+        "http://localhost:5173", // 開発環境
         "https://kurobeersabasand.github.io"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
