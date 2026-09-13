@@ -28,7 +28,7 @@ app.use(
     origin: [
       "http://localhost:5173", // 開発環境
       "https://kurobeersabasand.github.io",
-      "https://wms-frontend-qvodjk5lk-kurobeer.vercel.app"
+      "https://wms-frontend-vue.vercel.app"
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
