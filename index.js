@@ -124,6 +124,29 @@ app.get("/api/master-products", authenticateToken, async (req, res) => {
   }
 });
 
+// 商品マスタ登録
+app.post("/api/master-products", authenticateToken, async (req, res) => {
+  const { product_code, product_name, barcode } = req.body;
+  if (!product_code || !product_name) {
+    return res
+      .status(400)
+      .json({ error: "product_code と product_name は必須です" });
+  }
+  try {
+    await pool.query(
+      `INSERT INTO master_products (product_code, product_name, barcode, created_at)
+      VALUES ($1, $2, $3, NOW())`,
+      [product_code, product_name, barcode || null],
+    );
+    res.json({ ok: true, message: "商品マスタを登録しました" });
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "商品マスタ登録に失敗しました: " + err.message });
+  }
+});
+
 // 在庫一覧ページを作る
 // API化
 app.get("/api/products", authenticateToken, async (req, res) => {
