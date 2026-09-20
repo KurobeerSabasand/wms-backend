@@ -544,22 +544,31 @@ app.post("/api/shipments/reallocate", authenticateToken, async (req, res) => {
 app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
   const { shipment_id } = req.body;
   if (!shipment_id) {
-    return res.status(400).json({ error: "shipment_id が必要です" });
+    return res.status(400).json({
+      ok: false,
+      message: "shipment_id が必要です",
+    });
   }
   try {
     await pool.query("BEGIN");
     // 現在のステータスを確認
     const statusRow = await pool.query(
-      `SELECT status FROM shipments WHERE shipment_id = $1 LIMIT 1`,
+      `SELECT status FROM shipments WHERE shipment_id = $1`,
       [shipment_id],
     );
     if (statusRow.rows.length === 0) {
-      throw new Error("出荷指示が存在しません");
+      return res.status(404).json({
+        ok: false,
+        message: "出荷指示が存在しません",
+      });
     }
     const currentStatus = statusRow.rows[0].status;
     // allocated のみ作業中にできる
     if (currentStatus !== "allocated") {
-      throw new Error("allocated の出荷指示のみ作業中にできます");
+      return res.status(400).json({
+        ok: false,
+        message: "allocated の出荷指示のみ作業中にできます",
+      });
     }
     // 明細を取得
     const lines = await pool.query(
@@ -568,7 +577,7 @@ app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
       WHERE shipment_id = $1`,
       [shipment_id],
     );
-    // ロット確定（ピックリスト用）
+    // ★ロット確定（引当済み数量 = stock - allocatable_stock を使う）
     for (const line of lines.rows) {
       const { shipment_line_id, product_code, quantity } = line;
       let remaining = quantity;
@@ -581,9 +590,12 @@ app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
       );
       for (const lot of lots.rows) {
         if (remaining <= 0) break;
-        const useQty = Math.min(lot.allocatable_stock, remaining);
+        // const useQty = Math.min(lot.allocatable_stock, remaining);
+        const allocatedQty = lot.stock - lot.allocatable_stock;
+        if (allocatedQty <= 0) continue; // 引当済みがないロットはスキップ
+        const useQty = Math.min(allocatedQty, remaining);
         remaining -= useQty;
-        // ピックリスト用ロット確定テーブルに保存
+        // shipment_allocations に記録
         await pool.query(
           `INSERT INTO shipment_allocations (
             shipment_id,
@@ -596,7 +608,10 @@ app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
         );
       }
       if (remaining > 0) {
-        throw new Error(`ロット不足: ${product_code}`);
+        return res.status(400).json({
+          ok: false,
+          message: `ロット不足: ${product_code}`,
+        });
       }
     }
     // 作業中に更新
@@ -608,7 +623,7 @@ app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
       [shipment_id],
     );
     await pool.query("COMMIT");
-    res.json({
+    return res.json({
       ok: true,
       status: "working",
       message: "作業中ステータスに変更し、ロットを確定しました",
@@ -616,7 +631,10 @@ app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
   } catch (err) {
     await pool.query("ROLLBACK");
     console.error(err);
-    res.status(500).json({ error: "作業中処理に失敗しました: " + err.message });
+    return res.status(500).json({
+      ok: false,
+      message: "作業中処理に失敗しました: " + err.message,
+    });
   }
 });
 
