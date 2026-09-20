@@ -306,7 +306,7 @@ app.post(
         try {
           for (const s of shipments) {
             await pool.query(
-              `INSERT INTO shipments(shipment_id,shipment_line_id,product_code,quantity) VALUES ($1,$2,$3,$4)`,
+              `INSERT INTO shipments(shipment_id,shipment_line_id,product_code,quantity,status) VALUES ($1,$2,$3,$4,'pending')`,
               [
                 s.shipment_id,
                 Number(s.shipment_line_id),
