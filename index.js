@@ -690,24 +690,37 @@ app.get(
   async (req, res) => {
     const shipmentId = req.params.shipment_id;
     try {
-      const result = await pool.query(
-        `SELECT 
-        shipment_line_id,
-        product_code,
-        quantity,
-        quality,
-        destination_name,
-        destination_zip,
-        destination_address,
-        destination_tel,
-        status,
-        updated_at 
-        FROM shipments 
-        WHERE shipment_id = $1 
-        ORDER BY shipment_line_id`,
+      // shipment のステータス取得
+      const shipmentResult = await pool.query(
+        `SELECT status FROM shipments WHERE shipment_id = $1`,
         [shipmentId],
       );
-      res.json(result.rows);
+      if (shipmentResult.rows.length === 0) {
+        return res.status(404).json({ error: "出荷指示が見つかりません" });
+      }
+      const shipmentStatus = shipmentResult.rows[0].status;
+      // 行ごとの引当済み数量を含めて取得
+      const lineResult = await pool.query(
+        `SELECT
+          sl.shipment_line_id,
+          sl.product_code,
+          sl.quantity,
+          sl.destination_name,
+          sl.destination_address
+          sl.status,
+          COALESCE(SUM(satisfies.allocated_qty),0) AS allocated_qty
+        FROM shipment_lines sl
+        LEFT JOIN shipment_allocations sa ON sl.shipment_line_id = sa.shipment_line_id
+        WHERE sl.shipment_id = $1
+        GROUP BY sl.shipment_line_id
+        ORDER BY sl.shipment_line_id`,
+        [shipmentId],
+      );
+      res.json({
+        shipment_id: shipmentId,
+        status: shipmentStatus,
+        lines: lineResult.rows,
+      });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "詳細取得に失敗しました" });
