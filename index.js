@@ -706,13 +706,13 @@ app.get(
           sl.product_code,
           sl.quantity,
           sl.destination_name,
-          sl.destination_address
+          sl.destination_address,
           sl.status,
-          COALESCE(SUM(satisfies.allocated_qty),0) AS allocated_qty
-        FROM shipment_lines sl
+          COALESCE(SUM(sa.allocated_qty),0) AS allocated_qty
+        FROM shipment sl
         LEFT JOIN shipment_allocations sa ON sl.shipment_line_id = sa.shipment_line_id
         WHERE sl.shipment_id = $1
-        GROUP BY sl.shipment_line_id
+        GROUP BY sl.shipment_line_id,sl.product_code,sl.quantity,sl.destination_name,sl.destination_address,sl.status
         ORDER BY sl.shipment_line_id`,
         [shipmentId],
       );
