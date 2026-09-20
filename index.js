@@ -115,13 +115,23 @@ app.get("/api/products", authenticateToken, async (req, res) => {
 });
 
 // 商品追加
-app.post("/api/products", authenticateToken, async (req, res) => {
-  const { name, stock } = req.body;
-  const result = await pool.query(
-    "INSERT INTO products (name, stock) VALUES ($1, $2) RETURNING *",
-    [name, stock],
-  );
-  res.json({ ok: true, product: result.rows[0] });
+app.post("/api/products/add-lot", authenticateToken, async (req, res) => {
+  const { product_code, stock, stocked_at } = req.body;
+  if (!product_code || !stock) {
+    return res.status(400).json({ error: "product_code と stock は必須です" });
+  }
+  const stockedAt = stocked_at || new Date(); // 指定なければ現在時刻
+  try {
+    await pool.query(
+      `INSERT INTO products (product_code, stock, allocatable_stock, stocked_at)
+      VALUES ($1, $2, $2, $3)`,
+      [product_code, stock, stockedAt],
+    );
+    res.json({ ok: true, message: "ロットを追加しました" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "ロット追加に失敗しました: " + err.message });
+  }
 });
 
 // 商品1件を取得（GET /api/products/:id）
