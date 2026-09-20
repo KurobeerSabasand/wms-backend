@@ -20,6 +20,7 @@ const fs = require("fs");
 // CSV をパースするために multer + csv-parse を使う。
 const multer = require("multer");
 const { parse } = require("csv-parse");
+const { error } = require("console");
 const upload = multer({ dest: "uploads/" });
 
 // CORS を設定する
@@ -150,8 +151,24 @@ app.post("/api/master-products", authenticateToken, async (req, res) => {
 // 在庫一覧ページを作る
 // API化
 app.get("/api/products", authenticateToken, async (req, res) => {
-  const result = await pool.query("SELECT * FROM products");
-  res.json(result.rows);
+  try {
+    const result = await pool.query(
+      `SELECT
+        product_code,
+        stock,
+        allocatable_stock,
+        stocked_at,
+        updated_at
+      FROM products
+      ORDER BY product_code ASC, stocked_at ASC`,
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "ロット一覧取得に失敗しました: " + err.message });
+  }
 });
 
 // 商品追加
@@ -186,34 +203,74 @@ app.get("/api/products/:id", authenticateToken, async (req, res) => {
 });
 
 // 在庫を増減する（PUT /api/products/:id/stock）
-app.put("/api/products/:id/stock", authenticateToken, async (req, res) => {
-  const id = Number(req.params.id);
-  const { amount } = req.body;
-  const result = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
-  const product = result.rows[0];
-
-  if (!product) {
-    return res.status(404).json({ error: "商品が見つかりません" });
-  }
-  const newStock = product.stock + Number(amount);
-  if (newStock < 0) {
-    return res.status(400).json({ error: "在庫不足です" });
-  }
-
-  await pool.query("UPDATE products SET stock = $1 WHERE id = $2", [
-    newStock,
-    id,
-  ]);
-  res.json({ ok: true, product: { ...product, stock: newStock } });
-});
+app.put(
+  "/api/products/product_code/stock",
+  authenticateToken,
+  async (req, res) => {
+    const { product_code } = req.params;
+    const { stocked_at, amount } = req.body;
+    const row = await pool.query(
+      `SELECT stock, allocatable_stock
+    FROM products
+    WHERE product_code = $1 AND stocked_at = $2`,
+      [product_code, stocked_at],
+    );
+    if (row.rows.length === 0) {
+      return res.status(404).json({ error: "ロットが存在しません" });
+    }
+    const { stock, allocatable_stock } = row.rows[0];
+    // 減らせる最大数量は allocatable_stock
+    if (amount < 0 && Math.abs(amount) > allocatable_stock) {
+      return res
+        .status(400)
+        .json({ error: "引当済み数量を超えて在庫を減らすことはできません" });
+    }
+    // 在庫更新
+    await pool.query(
+      `UPDATE products
+      SET stock = stock + $1,allocatable_stock = allocatable_stock + $1, updated_at = NOW()
+      WHERE product_code = $2 AND stocked_at = $3`,
+      [amount, product_code, stocked_at],
+    );
+    res.json({ ok: true, message: "在庫を更新しました" });
+  },
+);
 
 // 商品を削除する（DELETE /api/products/:id）
-app.delete("/api/products/:id", authenticateToken, async (req, res) => {
-  const id = Number(req.params.id);
-  const result = await pool.query("DELETE FROM products WHERE id = $1", [id]);
-  if (!result.rowCount === 0) {
-    return res.status(404).json({ error: "商品が見つかりません" });
+app.delete("/api/products/lot", authenticateToken, async (req, res) => {
+  const { product_code, stocked_at } = req.body;
+  if (!product_code || !stocked_at) {
+    return res
+      .status(400)
+      .json({ error: "product_code と stocked_at が必要です" });
   }
+  try {
+    const row = await pool.query(
+      `SELECT stock,allocatable_stock
+      FROM products
+      WHERE product_code = $1 AND stocked_at = $2`,
+      [product_code, stocked_at],
+    );
+    if (row.rows.length === 0) {
+      throw new Error("ロットが存在しません");
+    }
+    const { stock, allocatable_stock } = row.rows[0];
+    // 引当済み数量がある場合は削除禁止
+    if (allocatable_stock < stock) {
+      throw new Error("引当済みのロットは削除できません");
+    }
+    // 削除実行
+    await pool.query(
+      `DELETE FROM products
+      WHERE product_code = $1 AND stocked_at = $2`,
+      [product_code, stocked_at],
+    );
+    res.json({ ok: true, message: "ロットを削除しました" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "ロット削除に失敗しました: " + err.message });
+  }
+
   res.json({ ok: true });
 });
 
