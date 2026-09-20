@@ -107,6 +107,23 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// 商品マスタ
+app.get("/api/master-products", authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT product_code,product_name
+      FROM master_products
+      ORDER BY product_code ASC`,
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res
+      .status(500)
+      .json({ error: "商品マスタ取得に失敗しました: " + err.message });
+  }
+});
+
 // 在庫一覧ページを作る
 // API化
 app.get("/api/products", authenticateToken, async (req, res) => {
