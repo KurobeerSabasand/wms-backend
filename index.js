@@ -21,6 +21,7 @@ const fs = require("fs");
 const multer = require("multer");
 const { parse } = require("csv-parse");
 const { error } = require("console");
+const { ok } = require("assert");
 const upload = multer({ dest: "uploads/" });
 
 // CORS を設定する
@@ -229,9 +230,10 @@ app.put(
 app.delete("/api/products/lot", authenticateToken, async (req, res) => {
   const { product_code, stocked_at } = req.body;
   if (!product_code || !stocked_at) {
-    return res
-      .status(400)
-      .json({ error: "product_code と stocked_at が必要です" });
+    return res.status(400).json({
+      ok: false,
+      message: "product_code と stocked_at が必要です",
+    });
   }
   try {
     const row = await pool.query(
@@ -241,12 +243,18 @@ app.delete("/api/products/lot", authenticateToken, async (req, res) => {
       [product_code, stocked_at],
     );
     if (row.rows.length === 0) {
-      throw new Error("ロットが存在しません");
+      return res.status(404).json({
+        ok: false,
+        message: "ロットが存在しません",
+      });
     }
     const { stock, allocatable_stock } = row.rows[0];
     // 引当済み数量がある場合は削除禁止
     if (allocatable_stock < stock) {
-      throw new Error("引当済みのロットは削除できません");
+      return res.status(400).json({
+        ok: false,
+        message: "引当済みのロットは削除できません",
+      });
     }
     // 削除実行
     await pool.query(
@@ -254,13 +262,17 @@ app.delete("/api/products/lot", authenticateToken, async (req, res) => {
       WHERE product_code = $1 AND stocked_at = $2`,
       [product_code, stocked_at],
     );
-    res.json({ ok: true, message: "ロットを削除しました" });
+    return res.json({
+      ok: true,
+      message: "ロットを削除しました",
+    });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "ロット削除に失敗しました: " + err.message });
+    return res.status(500).json({
+      ok: false,
+      error: "ロット削除に失敗しました: " + err.message,
+    });
   }
-
-  res.json({ ok: true });
 });
 
 // JSON 取り込み API
