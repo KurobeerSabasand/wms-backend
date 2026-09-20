@@ -191,17 +191,6 @@ app.post("/api/products/add-lot", authenticateToken, async (req, res) => {
   }
 });
 
-// 商品1件を取得（GET /api/products/:id）
-app.get("/api/products/:id", authenticateToken, async (req, res) => {
-  const id = Number(req.params.id);
-  const result = await pool.query("SELECT * FROM products WHERE id = $1", [id]);
-  const product = result.rows[0];
-  if (!product) {
-    return res.status(404).json({ error: "商品が見つかりません" });
-  }
-  res.json(product);
-});
-
 // 在庫を増減する（PUT /api/products/:id/stock）
 app.put(
   "/api/products/product_code/stock",
