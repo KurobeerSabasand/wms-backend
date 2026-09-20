@@ -112,7 +112,7 @@ function authenticateToken(req, res, next) {
 app.get("/api/master-products", authenticateToken, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT product_code,product_name
+      `SELECT product_code,product_name,created_at
       FROM master_products
       ORDER BY product_code ASC`,
     );
