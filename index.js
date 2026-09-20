@@ -582,7 +582,7 @@ app.post("/api/shipments/start-work", authenticateToken, async (req, res) => {
       const { shipment_line_id, product_code, quantity } = line;
       let remaining = quantity;
       const lots = await pool.query(
-        `SELECT product_code,allocatable_stock,stocked_at
+        `SELECT product_code,stock,allocatable_stock,stocked_at
         FROM products
         WHERE product_code = $1
         ORDER BY stocked_at ASC`,
